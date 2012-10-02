@@ -1,0 +1,15 @@
+
+== Pancake ==
+
+Pancake allows your program to perform just-in-time specialization for your
+OpenCL kernels.
+
+Getting this to work requires the following steps:
+
+ * #include <pancake.h> in every source file that makes OpenCL calls *before*
+   <CL/cl.hpp> or any other header that might make OpenCL calls or use OpenCL
+   data types gets included.
+ * Link to libpancake.so
+ * Annotate your OpenCL kernels with specialization directives.
+
+
