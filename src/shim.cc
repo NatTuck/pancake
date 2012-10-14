@@ -4,8 +4,10 @@
 #include <alloca.h>
 #include <string.h>
 
+#include <pancake/parser.h>
+
 #define PANCAKE_INTERNAL
-#include "pancake.h"
+#include <pancake/shim.h>
 
 pancake_cl_program 
 pancake_clCreateProgramWithSource(cl_context context, cl_uint count, 
@@ -15,6 +17,27 @@ pancake_clCreateProgramWithSource(cl_context context, cl_uint count,
     pgm->refs = 1;
     pgm->build_options = 0;    
     pgm->program = clCreateProgramWithSource(context, count, strings, lengths, errcode_return);
+
+    size_t length = 0;
+    size_t ii;
+
+    for (ii = 0; ii < count; ++ii) {
+	length += lengths[ii];
+    }
+
+    char* text = (char*) alloca(length);
+    text[0] = 0;
+
+    size_t offset = 0;
+    for (ii = 0; ii < count; ++ii) {
+	strcat(text + offset, strings[ii]);
+	offset += lengths[ii];
+    }
+
+    pancake_module* mm = pancake_create_module(text);
+    printf("Code:\n%s\n", pancake_module_get_asm(mm));
+    pancake_destroy_module(mm);
+
     return pgm;
 }
 
@@ -83,7 +106,7 @@ pancake_clGetProgramBuildInfo(pancake_cl_program program, cl_device_id device,
 pancake_cl_kernel 
 pancake_clCreateKernel(pancake_cl_program program, const char *kernel_name, cl_int *errcode_ret)
 {
-    pancake_cl_kernel kk = malloc(sizeof(pancake_cl_kernel_));
+    pancake_cl_kernel kk = (pancake_cl_kernel) malloc(sizeof(pancake_cl_kernel_));
     kk->refs   = 1;
     kk->kernel = clCreateKernel(program->program, kernel_name, errcode_ret);
     return kk;
@@ -100,12 +123,12 @@ pancake_clCreateKernelsInProgram(pancake_cl_program program, cl_uint num_kernels
     assert(num_kernels_ret == 0 && "when num_kernels != 0");
 
     /* No, let's build some kernel structures. */
-    cl_kernel* ks = alloca(num_kernels * sizeof(cl_kernel));
+    cl_kernel* ks = (cl_kernel*) alloca(num_kernels * sizeof(cl_kernel));
 
     int errcode = clCreateKernelsInProgram(program->program, num_kernels, ks, 0);
 
-    for (int ii = 0; ii < num_kernels; ++ii) {
-	pancake_cl_kernel kk = malloc(sizeof(pancake_cl_kernel_));
+    for (cl_uint ii = 0; ii < num_kernels; ++ii) {
+	pancake_cl_kernel kk = (pancake_cl_kernel) malloc(sizeof(pancake_cl_kernel_));
 	kk->refs   = 1;
 	kk->kernel = ks[ii];
 	kernels[ii] = kk;

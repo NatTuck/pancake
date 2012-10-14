@@ -5,7 +5,7 @@
 #include <string.h>
 #include <stdarg.h>
 
-#include <pancake.h>
+#include <pancake/shim.h>
 
 #include "pclu.h"
 
@@ -39,7 +39,7 @@ pclu_find_best_device(pclu_context* pclu)
     cl_platform_id* platforms = (cl_platform_id*) malloc(sizeof(cl_platform_id)*num_platforms);
     pclu_check_call("clGetPlatformIDs", clGetPlatformIDs(num_platforms, platforms, 0));
 
-    for (int ii = 0; ii < num_platforms; ++ii) {
+    for (size_t ii = 0; ii < num_platforms; ++ii) {
 	cl_uint num_devices;
 	pclu_check_call("clGetDeviceIDs", 
 			clGetDeviceIDs(platforms[ii], dev_type, 0, 0, &num_devices));
@@ -300,7 +300,7 @@ pclu_destroy_program(pclu_program* pgm)
     if (pgm->build_log)
 	free(pgm->build_log);
 
-    for (int ii = 0; ii < pgm->num_kernels; ++ii) {
+    for (size_t ii = 0; ii < pgm->num_kernels; ++ii) {
 	pclu_check_call("clReleaseKernel", clReleaseKernel(pgm->kernels[ii]));
     }
 

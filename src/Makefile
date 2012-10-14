@@ -1,15 +1,16 @@
 
-CFLAGS=-g -fPIC -Wall -std=gnu99 -I../include
-LDFLAGS=-g -fPIC -shared
-LDLIBS=-lOpenCL
+CC=g++
+CXXFLAGS=-g -fPIC -Wall -I../include 
+LDFLAGS=-g -fPIC -shared 
+LDLIBS=-lOpenCL `../scripts/llvm-libs.pl`
 
-HDRS=$(ls ../include/*.h)
-OBJS=$(shell ls *.c | perl -pe 's/\.c\b/.o/')
+HDRS=$(ls ../include/*.hh)
+OBJS=$(shell ls *.cc | perl -pe 's/\.cc\b/.o/')
 
 libpancake.so: $(OBJS) Makefile
 	$(CC) $(LDFLAGS) -o libpancake.so $(OBJS) $(LDLIBS)
 
-$(OBJS): %.o: %.c $(HDRS)
+$(OBJS): %.o: %.cc $(HDRS)
 
 clean:
 	rm -f *.o *.so

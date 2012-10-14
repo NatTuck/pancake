@@ -1,7 +1,9 @@
 
-CFLAGS=-g -Wall -std=gnu99 -I../../include
+CC=g++
+
+CFLAGS=-g -Wall -I../../include
 LDFLAGS=-g -L../../lib
-LDLIBS=-lOpenCL -lpancake
+LDLIBS=-lOpenCL -lpancake `../../scripts/llvm-libs.pl`
 
 BINF=mmul
 OBJS=$(shell ls *.c | perl -pe 's/\.c\b/.o/')

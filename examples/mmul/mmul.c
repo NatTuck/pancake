@@ -4,7 +4,7 @@
 #include <unistd.h>
 #include <string.h>
 
-#include <pancake.h>
+#include <pancake/shim.h>
 
 #include "pclu.h"
 
@@ -54,7 +54,7 @@ create_matrix(size_t rows, size_t cols)
     mm->cols = cols;
 
     size_t size = matrix_size(mm);
-    mm->data = calloc(size, sizeof(DTYPE));
+    mm->data = (DTYPE*) calloc(size, sizeof(DTYPE));
 
     return mm;
 }
@@ -83,7 +83,7 @@ create_identity_matrix(size_t rows, size_t cols)
 {
     matrix* mm = create_matrix(rows, cols);
 
-    for (int ii = 0; ii < rows; ++ii) {
+    for (size_t ii = 0; ii < rows; ++ii) {
 	if (ii >= cols)
 	    break;
 
@@ -98,8 +98,8 @@ create_random_matrix(size_t rows, size_t cols)
 {
     matrix* mm = create_matrix(rows, cols);
     
-    for (int ii = 0; ii < rows; ++ii) {
-	for (int jj = 0; jj < cols; ++jj) {
+    for (size_t ii = 0; ii < rows; ++ii) {
+	for (size_t jj = 0; jj < cols; ++jj) {
 	    set_cell(mm, ii, jj, 10 * rand48());
 	}
     }
@@ -110,8 +110,8 @@ create_random_matrix(size_t rows, size_t cols)
 void
 print_matrix(matrix* mm)
 {
-    for (int ii = 0; ii < mm->rows; ++ii) {
-	for (int jj = 0; jj < mm->cols; ++jj) {
+    for (size_t ii = 0; ii < mm->rows; ++ii) {
+	for (size_t jj = 0; jj < mm->cols; ++jj) {
 	    DTYPE xx = get_cell(mm, ii, jj);
 	    printf(FORMAT, xx);
 	    printf(" ");

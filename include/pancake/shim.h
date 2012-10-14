@@ -1,5 +1,5 @@
-#ifndef PANCAKE_H
-#define PANCAKE_H
+#ifndef PANCAKE_SHIM_H
+#define PANCAKE_SHIM_H
 
 #include <CL/cl.h>
 
@@ -22,6 +22,10 @@
  * 
  */
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 /* pancake_cl_program - 
  * 
  * Proxy struct for cl_program
@@ -35,6 +39,7 @@ typedef struct pancake_cl_program_ {
 } pancake_cl_program_;
 
 typedef pancake_cl_program_* pancake_cl_program;
+
 
 pancake_cl_program pancake_clCreateProgramWithSource(cl_context context, cl_uint count, 
     const char** strings, const size_t* lengths, cl_int* errcode_return);
@@ -98,5 +103,9 @@ cl_int pancake_clEnqueueNDRangeKernel (cl_command_queue command_queue, pancake_c
 	(a),(b),(c),(d),(e),(f),(g),(h),(i))
 #endif
 
+
+#ifdef __cplusplus
+} // extern "C"
+#endif
 
 #endif
