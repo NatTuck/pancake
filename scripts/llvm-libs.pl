@@ -2,6 +2,9 @@
 use 5.10.0;
 use warnings FATAL => 'all';
 
+say `llvm-config --libs`;
+exit 0;
+
 my @libs  = split /\s+/, `llvm-config --libfiles`;
 my @flags = ();
 
