@@ -1,6 +1,6 @@
 
 CC=g++
-CXXFLAGS=-g -fPIC -Wall -I../include 
+CXXFLAGS=-g -fPIC -Wall -I../include `llvm-config --cxxflags`
 LDFLAGS=-g -fPIC -shared 
 LDLIBS=-lOpenCL `../scripts/llvm-libs.pl`
 
