@@ -2,8 +2,9 @@
 CC=g++
 
 CFLAGS=-g -Wall -I../../include
-LDFLAGS=-g -L../../lib
-LDLIBS=-lOpenCL -lpancake `../../scripts/llvm-libs.pl`
+LDFLAGS=-g -L../../lib -L$(HOME)/Apps/pocl/lib
+LDLIBS=-lpocl -lltdl -lpancake `../../scripts/llvm-libs.pl`
+#LDLIBS=-lOpenCL -lpancake `../../scripts/llvm-libs.pl` -lpthread
 
 BINF=mmul
 OBJS=$(shell ls *.c | perl -pe 's/\.c\b/.o/')

@@ -13,9 +13,9 @@ void
 pclu_check_call_real(const char* name, int error_code, const char* file, const int line)
 {
     if (error_code != CL_SUCCESS) {
-	fprintf(stderr, "Error at %s:%d in call to %s:\n  ", file, line, name);
-	pclu_perror(error_code);
-	exit(1);
+        fprintf(stderr, "Error at %s:%d in call to %s:\n  ", file, line, name);
+        pclu_perror(error_code);
+        exit(1);
     }
 }
 
@@ -24,13 +24,13 @@ void
 pclu_find_best_device(pclu_context* pclu)
 {
     const char* dev_type_str = getenv("OPENCL_DEVICE_TYPE");
-    cl_uint dev_type = CL_DEVICE_TYPE_DEFAULT;
+    cl_uint dev_type = CL_DEVICE_TYPE_CPU | CL_DEVICE_TYPE_GPU;
 
     if(dev_type_str) {
-	if (dev_type_str[0] == 'C')
-	    dev_type = CL_DEVICE_TYPE_CPU;
-	if (dev_type_str[0] == 'G')
-	    dev_type = CL_DEVICE_TYPE_GPU;
+        if (dev_type_str[0] == 'C')
+            dev_type = CL_DEVICE_TYPE_CPU;
+        if (dev_type_str[0] == 'G')
+            dev_type = CL_DEVICE_TYPE_GPU;
     }
 
     cl_uint num_platforms;
@@ -43,6 +43,18 @@ pclu_find_best_device(pclu_context* pclu)
 	cl_uint num_devices;
 	pclu_check_call("clGetDeviceIDs", 
 			clGetDeviceIDs(platforms[ii], dev_type, 0, 0, &num_devices));
+
+	printf("Platform #%ld: %d devices found\n", ii, num_devices);
+
+	size_t name_size;
+	pclu_check_call("clGetPlatformInfo", 
+			clGetPlatformInfo(platforms[ii], CL_PLATFORM_NAME, 0, 0, &name_size));
+	char* plat_name = (char*) alloca(name_size);
+	pclu_check_call("clGetPlatformInfo", 
+			clGetPlatformInfo(platforms[ii], CL_PLATFORM_NAME, name_size, 
+					  (void*)plat_name, 0));
+
+	printf("Platform name: %s\n", plat_name);
 
 	if (num_devices > 0) {
 	    cl_device_id* devices = (cl_device_id*) malloc(sizeof(cl_device_id)*num_devices);
@@ -278,18 +290,39 @@ pclu_create_program(pclu_context* pclu, const char* path)
     free(source);
 
     /* Compile for the device */
+    errcode = clBuildProgram(pgm->program, 1, &(pclu->device), "", 0, 0);
 
-    pclu_check_call("clBuildProgram", 
-		    clBuildProgram(pgm->program, 1, &(pclu->device), "", 0, 0));
+    /* Print out errors on failure */
+    if (errcode == CL_BUILD_PROGRAM_FAILURE) {
+        size_t log_size;
+        char*  log_text;
+
+        pclu_check_call("clGetProgramBuildInfo", 
+                clGetProgramBuildInfo(
+                    pgm->program, pclu->device, CL_PROGRAM_BUILD_LOG, 0, 0, &log_size));
+
+        log_text = (char*) alloca(log_size);
+
+        pclu_check_call("clGetProgramBuildInfo", 
+                clGetProgramBuildInfo(
+                    pgm->program, pclu->device, CL_PROGRAM_BUILD_LOG, 
+                    log_size, log_text, 0));
+
+        fprintf(stderr, "Build Errors\n%s\n", log_text);
+    }
+
+    pclu_check_call("clBuildProgram", errcode);
 
     /* Get the kernels */
 
+    /*
     pclu_check_call("clCreateKernelsInProgram",
 		    clCreateKernelsInProgram(pgm->program, 0, 0, &(pgm->num_kernels)));
 
     pgm->kernels = (cl_kernel*) malloc(pgm->num_kernels*sizeof(cl_kernel));
     pclu_check_call("clCreateKernelsInProgram",
 		    clCreateKernelsInProgram(pgm->program, pgm->num_kernels, pgm->kernels, 0));
+    */
 
     return pgm;
 }
@@ -297,6 +330,8 @@ pclu_create_program(pclu_context* pclu, const char* path)
 void 
 pclu_destroy_program(pclu_program* pgm)
 {
+    return;
+
     if (pgm->build_log)
 	free(pgm->build_log);
 
@@ -340,21 +375,29 @@ pclu_call_kernel(pclu_program* pgm, const char* name, pclu_range range, size_t a
     va_start(ap, argc);
 
     for (cl_uint ii = 0; ii < argc; ++ii) {
-	size_t size = va_arg(ap, size_t);	
-	void*  arg  = va_arg(ap, void*);
-	pclu_check_call("clSetKernelArg", clSetKernelArg(kern, ii, size, arg));
+        size_t size = va_arg(ap, size_t);	
+        void*  arg  = va_arg(ap, void*);
+        pclu_check_call("clSetKernelArg", clSetKernelArg(kern, ii, size, arg));
     }
 
     va_end(ap);
 
+#define NO_CL_EVENTS 1
+
+#ifdef NO_CL_EVENTS
+    cl_event kernel_done = 0;
+#else
     cl_event kernel_done = clCreateUserEvent(pgm->pclu->context, &errcode);
     pclu_check_call("clCreateUserEvent", errcode);
+#endif
 
     errcode = clEnqueueNDRangeKernel(pgm->pclu->queue, kern, range.nd, 0, 
 				     range.global, 0, 0, 0, &kernel_done);
     pclu_check_call("clEnqueueNDRangeKernel", errcode);
 
+#ifndef NO_CL_EVENTS
     pclu_check_call("clWaitForEvents", clWaitForEvents(1, &kernel_done));
+#endif
 
     pclu_check_call("clReleaseKernel", clReleaseKernel(kern));
 }

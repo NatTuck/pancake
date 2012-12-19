@@ -22,7 +22,7 @@ pancake_clCreateProgramWithSource(cl_context context, cl_uint count,
     size_t ii;
 
     for (ii = 0; ii < count; ++ii) {
-	length += lengths[ii];
+        length += lengths[ii];
     }
 
     char* text = (char*) alloca(length);
@@ -30,13 +30,11 @@ pancake_clCreateProgramWithSource(cl_context context, cl_uint count,
 
     size_t offset = 0;
     for (ii = 0; ii < count; ++ii) {
-	strcat(text + offset, strings[ii]);
-	offset += lengths[ii];
+        strcat(text + offset, strings[ii]);
+        offset += lengths[ii];
     }
 
-    pancake_module* mm = pancake_create_module(text);
-    printf("Code:\n%s\n", pancake_module_get_asm(mm));
-    pancake_destroy_module(mm);
+    pgm->module = pancake_create_module(text);
 
     return pgm;
 }
@@ -57,14 +55,17 @@ pancake_clReleaseProgram(pancake_cl_program program)
 	return CL_SUCCESS;
 
     if (program-> refs < 0) {
-	fprintf(stderr, "pancake_clReleaseProgram: called when refs <= 0");
-	exit(1);
+        fprintf(stderr, "pancake_clReleaseProgram: called when refs <= 0");
+        exit(1);
     }
 
     int errcode = clReleaseProgram(program->program);
 
     if (program->build_options)
-	free(program->build_options);
+        free(program->build_options);
+
+    if (program->module)
+        pancake_destroy_module(program->module);
 
     free(program);
     
@@ -128,10 +129,10 @@ pancake_clCreateKernelsInProgram(pancake_cl_program program, cl_uint num_kernels
     int errcode = clCreateKernelsInProgram(program->program, num_kernels, ks, 0);
 
     for (cl_uint ii = 0; ii < num_kernels; ++ii) {
-	pancake_cl_kernel kk = (pancake_cl_kernel) malloc(sizeof(pancake_cl_kernel_));
-	kk->refs   = 1;
-	kk->kernel = ks[ii];
-	kernels[ii] = kk;
+        pancake_cl_kernel kk = (pancake_cl_kernel) malloc(sizeof(pancake_cl_kernel_));
+        kk->refs   = 1;
+        kk->kernel = ks[ii];
+        kernels[ii] = kk;
     }
 
     return errcode;
@@ -153,9 +154,9 @@ pancake_clReleaseKernel(pancake_cl_kernel kernel)
 	return CL_SUCCESS;
 
     if (kernel->refs == 0) {
-	int errcode = clReleaseKernel(kernel->kernel);
-	free(kernel);
-	return errcode;
+        int errcode = clReleaseKernel(kernel->kernel);
+        free(kernel);
+        return errcode;
     }
 
     fprintf(stderr, "pancake_clReleaseKernel: called when refs <= 0");
@@ -176,7 +177,7 @@ pancake_clEnqueueNDRangeKernel (cl_command_queue command_queue, pancake_cl_kerne
     const size_t *local_work_size, cl_uint num_events_in_wait_list, 
     const cl_event *event_wait_list, cl_event *event)
 {
-    return clEnqueueNDRangeKernel(command_queue, kernel->kernel, work_dim, global_work_offset,
-				  global_work_size, local_work_size, num_events_in_wait_list,
-				  event_wait_list, event);
+    return clEnqueueNDRangeKernel(command_queue, kernel->kernel, work_dim, 
+            global_work_offset, global_work_size, local_work_size, num_events_in_wait_list,
+            event_wait_list, event);
 }

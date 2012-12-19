@@ -2,7 +2,7 @@
 CC=g++
 CXXFLAGS=-g -fPIC -Wall -I../include `llvm-config --cxxflags`
 LDFLAGS=-g -fPIC -shared 
-LDLIBS=-lOpenCL `../scripts/llvm-libs.pl`
+LDLIBS=`../scripts/llvm-libs.pl`
 
 HDRS=$(ls ../include/*.hh)
 OBJS=$(shell ls *.cc | perl -pe 's/\.cc\b/.o/')

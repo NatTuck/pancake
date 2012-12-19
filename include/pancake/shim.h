@@ -32,14 +32,16 @@ extern "C" {
  *
  */ 
 
+typedef struct pancake_module pancake_module;
+
 typedef struct pancake_cl_program_ {
     cl_uint refs;
     cl_program program;
     char* build_options;
+    pancake_module* module;
 } pancake_cl_program_;
 
 typedef pancake_cl_program_* pancake_cl_program;
-
 
 pancake_cl_program pancake_clCreateProgramWithSource(cl_context context, cl_uint count, 
     const char** strings, const size_t* lengths, cl_int* errcode_return);

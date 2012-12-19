@@ -17,3 +17,7 @@ llvm::Module *stdlib = ParseBitcodeFile(buffer,
 Specialization is:
 Inst->replaceAllUsesWith(ConstVal)
 on the variable.
+
+
+Preinclude:
+    clang -include

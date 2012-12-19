@@ -6,6 +6,8 @@
 #include <unistd.h>
 
 #include <iostream>
+#include <string>
+#include <map>
 
 #include <pancake/llvm.h>
 #include <pancake/parser.h>
@@ -17,6 +19,7 @@
 #include <llvm/Support/system_error.h>
 
 using namespace llvm;
+using std::string;
 
 Module* pancake_clang_parse(const char* path);
 
@@ -36,6 +39,7 @@ pancake_create_module(const char* text)
     fflush(temp_file);
 
     module->module = pancake_clang_parse(temp_name);
+    
 
     fclose(temp_file);
     unlink(temp_name);

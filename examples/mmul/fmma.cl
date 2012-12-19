@@ -3,6 +3,7 @@
 
 kernel void
 fmma(global float *C, global float *A, global float *B, long nn, long spin)
+/* @spec fmma(nn, spin) */
 {
     const int xx = get_global_id(0);
     const int yy = get_global_id(1);
