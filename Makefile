@@ -1,19 +1,19 @@
+BASE := $(shell readlink -f .)
 
-all: lib/libpancake.so
+CC      := gcc
+CFLAGS  := -g -fPIC -std=gnu99 -I$(BASE)/include
+LDFLAGS := -g -fPIC -shared 
+LDLIBS  := -lOpenCL
 
-lib/libpancake.so: src/libpancake.so
-	cp src/libpancake.so lib/libpancake.so
+HDRS := $(wildcard include/pancake/*.h)
+SRCS := $(wildcard src/*.c)
+OBJS := $(SRCS:.c=.o)
 
-src/libpancake.so:
-	(cd src && make)
+lib/libpancake.so: $(OBJS) Makefile
+	$(CC) $(LDFLAGS) -o $@ $(OBJS) $(LDLIBS)
+
+$(OBJS): $(SRCS) $(HDRS)
 
 clean:
-	find . -name "*~" -exec rm {} \;
-	rm -f lib/libpancake.so
-	(cd src && make clean)
+	rm -f $(OBJS) lib/libpancake.so
 	(cd examples/mmul && make clean)
-
-prereqs:
-	sudo apt-get install llvm-3.0 llvm-3.0-dev clang opencl-headers
-
-.PHONY: all src/libpancake.so clean prereqs

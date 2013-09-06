@@ -4,8 +4,6 @@
 #include <alloca.h>
 #include <string.h>
 
-#include <pancake/parser.h>
-
 #define PANCAKE_INTERNAL
 #include <pancake/shim.h>
 
@@ -15,26 +13,13 @@ pancake_clCreateProgramWithSource(cl_context context, cl_uint count,
 {
     pancake_cl_program pgm = (pancake_cl_program) malloc(sizeof(pancake_cl_program_));
     pgm->refs = 1;
-    pgm->build_options = 0;    
+    pgm->build_options = 0;
+
+    /* Need to create unspecialized program here */
     pgm->program = clCreateProgramWithSource(context, count, strings, lengths, errcode_return);
 
-    size_t length = 0;
-    size_t ii;
-
-    for (ii = 0; ii < count; ++ii) {
-        length += lengths[ii];
-    }
-
-    char* text = (char*) alloca(length);
-    text[0] = 0;
-
-    size_t offset = 0;
-    for (ii = 0; ii < count; ++ii) {
-        strcat(text + offset, strings[ii]);
-        offset += lengths[ii];
-    }
-
-    pgm->module = pancake_create_module(text);
+    /* Write source to disk */
+    pgm->tmpdir = sprintf
 
     return pgm;
 }
@@ -64,9 +49,6 @@ pancake_clReleaseProgram(pancake_cl_program program)
     if (program->build_options)
         free(program->build_options);
 
-    if (program->module)
-        pancake_destroy_module(program->module);
-
     free(program);
     
     return errcode;
@@ -79,6 +61,9 @@ pancake_clBuildProgram(pancake_cl_program program, cl_uint num_devices,
     void *user_data)
 {
     /* Save some parameters */
+    if (program->build_options)
+        free(program->build_options);
+
     program->build_options = strdup(options);
 
     /* Build generic version of program to catch errors and generate

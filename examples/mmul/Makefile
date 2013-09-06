@@ -1,10 +1,9 @@
+BASE := $(shell readlink -f ../..)
 
-CC=g++
-
-CFLAGS=-g -Wall -I../../include
-LDFLAGS=-g -L../../lib -L$(HOME)/Apps/pocl/lib
-LDLIBS=-lpocl -lltdl -lpancake `../../scripts/llvm-libs.pl`
-#LDLIBS=-lOpenCL -lpancake `../../scripts/llvm-libs.pl` -lpthread
+CC      := gcc
+CFLAGS  := -g -std=gnu99 -Wall -I../../include
+LDFLAGS := -g -L$(BASE)/lib
+LDLIBS  := -lOpenCL -lpancake
 
 BINF=mmul
 OBJS=$(shell ls *.c | perl -pe 's/\.c\b/.o/')

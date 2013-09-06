@@ -9,7 +9,7 @@
 #include "pclu.h"
 #include "timer.h"
 
-#define SIZE   64
+#define SIZE   2048
 #define SPIN   1
 #define DTYPE  float
 #define FORMAT "%.02f"
@@ -142,7 +142,7 @@ check_result(matrix * cc, matrix * aa)
 
             if (abs(SPIN*xx - yy) > EPS) {
                 printf("ERROR - Incorrect result.\n");
-                printf("At %d, %d got %f instead of %f\n",
+                printf("At %ld, %ld got %f instead of %f\n",
                        ii, jj, yy, xx);
                 return;
             }
@@ -188,7 +188,11 @@ matrix_multiply_cl(pclu_context * pclu, matrix * cc, matrix * aa, matrix * bb)
 
     pclu_read_buffer(cc_buf, cc_size, cc->data);
 
+    printf("alpha\n");
+
     pclu_destroy_program(pgm);
+
+    printf("beta\n");
 }
 
 int
@@ -210,8 +214,15 @@ main(int argc, char *argv[])
     printf("\n");
 #endif
 
+    timer* tt1 = timer_alloc();
+
     matrix *cc = create_matrix(SIZE, SIZE);
     matrix_multiply_cl(pclu, cc, aa, bb);
+    
+    double tm1 = timer_read(tt1);
+    timer_free(tt1);
+    
+    printf("Matrix_multiply_cl took %.04f seconds.\n", tm1);
 
 #if PRINT_DATA
     printf("Matrix cc:\n");
@@ -219,7 +230,13 @@ main(int argc, char *argv[])
     printf("\n");
 #endif
 
+    timer* tt = timer_alloc();
     check_result(aa, cc);
+    
+    double ct = timer_read(tt);
+    timer_free(tt);
+    
+    printf("Check result took %.04f seconds.\n", ct);
 
     destroy_matrix(aa);
     destroy_matrix(bb);

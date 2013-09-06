@@ -38,7 +38,7 @@ typedef struct pancake_cl_program_ {
     cl_uint refs;
     cl_program program;
     char* build_options;
-    pancake_module* module;
+    char* tmpdir;
 } pancake_cl_program_;
 
 typedef pancake_cl_program_* pancake_cl_program;

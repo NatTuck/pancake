@@ -1,6 +1,0 @@
-Omelette is a runtime specializer for LLVM code.
-
-fry -o spec.ll mmul.bc -f "my_func" -s "a=5, b={1,2,3}"
-
-
-./fry -o out.bc -f ipow -s nn=2 ipow.bc 

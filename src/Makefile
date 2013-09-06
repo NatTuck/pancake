@@ -1,10 +1,6 @@
 
-DIRS=$(shell find * -maxdepth 0 -type d)
-
 all:
-	$(foreach d,$(DIRS),(cd $d && make);)
+	(cd .. && make)
 
 clean:
-	$(foreach d,$(DIRS),(cd $d && make clean);)
-
-.PHONY: all clean
+	(cd .. && make clean)
