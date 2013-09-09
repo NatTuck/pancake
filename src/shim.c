@@ -3,6 +3,10 @@
 #include <assert.h>
 #include <alloca.h>
 #include <string.h>
+#include <sys/types.h>
+#include <unistd.h>
+
+#include <drip/lstring.h>
 
 #define PANCAKE_INTERNAL
 #include <pancake/shim.h>
@@ -19,7 +23,9 @@ pancake_clCreateProgramWithSource(cl_context context, cl_uint count,
     pgm->program = clCreateProgramWithSource(context, count, strings, lengths, errcode_return);
 
     /* Write source to disk */
-    pgm->tmpdir = sprintf
+    long pid = (long) getpid();
+    pgm->tmpdir = lsprintf("/tmp/pancake-%ld/");
+
 
     return pgm;
 }
