@@ -35,10 +35,10 @@ extern "C" {
 typedef struct pancake_module pancake_module;
 
 typedef struct pancake_cl_program_ {
-    cl_uint refs;
     cl_program program;
     char* build_options;
-    char* tmpdir;
+    char* temp_dir;
+    char* temp_source;
 } pancake_cl_program_;
 
 typedef pancake_cl_program_* pancake_cl_program;
@@ -74,7 +74,6 @@ cl_int pancake_clGetProgramBuildInfo (pancake_cl_program program, cl_device_id d
  */
 
 typedef struct pancake_cl_kernel_ {
-    cl_uint refs;
     cl_kernel kernel;
 } pancake_cl_kernel_;
 

@@ -6,7 +6,10 @@
 #include <sys/types.h>
 #include <unistd.h>
 
+#include <gc.h>
+
 #include <drip/lstring.h>
+#include <drip/lio.h>
 
 #define PANCAKE_INTERNAL
 #include <pancake/shim.h>
@@ -15,49 +18,50 @@ pancake_cl_program
 pancake_clCreateProgramWithSource(cl_context context, cl_uint count, 
     const char** strings, const size_t* lengths, cl_int* errcode_return)
 {
-    pancake_cl_program pgm = (pancake_cl_program) malloc(sizeof(pancake_cl_program_));
-    pgm->refs = 1;
-    pgm->build_options = 0;
+    cl_int err;
+
+    pancake_cl_program program = (pancake_cl_program) GC_malloc(sizeof(pancake_cl_program_));
+    program->build_options = 0;
 
     /* Need to create unspecialized program here */
-    pgm->program = clCreateProgramWithSource(context, count, strings, lengths, errcode_return);
+    program->program = clCreateProgramWithSource(context, count, strings, lengths, errcode_return);
 
     /* Write source to disk */
-    long pid = (long) getpid();
-    pgm->tmpdir = lsprintf("/tmp/pancake-%ld/");
+    program->temp_dir = ltempname("pancake");
 
+    char* cmd = lsprintf("mkdir -p %s", program->temp_dir);
+    system(cmd);
 
-    return pgm;
+    size_t source_size;
+    err = clGetProgramInfo(program->program, CL_PROGRAM_SOURCE, 0, 0, &source_size);
+    if (err != CL_SUCCESS) {
+        *errcode_return = err;
+        return 0;
+    }
+
+    char* src_text = GC_malloc(source_size);
+    err = clGetProgramInfo(program->program, CL_PROGRAM_SOURCE, source_size, src_text, 0);
+    if (err != CL_SUCCESS) {
+        *errcode_return = err;
+        return 0;
+    }
+
+    program->temp_source = lsprintf("%s/program.cl", program->temp_dir);
+    ldump(program->temp_source, src_text);
+
+    return program;
 }
 
 cl_int 
 pancake_clRetainProgram(pancake_cl_program program)
 {
-    program->refs += 1;
-    return CL_SUCCESS;
+    return clRetainProgram(program->program);
 }
 
 cl_int 
 pancake_clReleaseProgram(pancake_cl_program program)
 {
-    program->refs -= 1;
-
-    if (program->refs > 0)
-	return CL_SUCCESS;
-
-    if (program-> refs < 0) {
-        fprintf(stderr, "pancake_clReleaseProgram: called when refs <= 0");
-        exit(1);
-    }
-
-    int errcode = clReleaseProgram(program->program);
-
-    if (program->build_options)
-        free(program->build_options);
-
-    free(program);
-    
-    return errcode;
+    return clReleaseProgram(program->program);
 }
 
 cl_int 
@@ -67,10 +71,7 @@ pancake_clBuildProgram(pancake_cl_program program, cl_uint num_devices,
     void *user_data)
 {
     /* Save some parameters */
-    if (program->build_options)
-        free(program->build_options);
-
-    program->build_options = strdup(options);
+    program->build_options = lstrdup(options);
 
     /* Build generic version of program to catch errors and generate
      * expected program state. */
@@ -83,7 +84,8 @@ pancake_clGetProgramInfo(pancake_cl_program program, cl_program_info param_name,
     size_t param_value_size, void* param_value, size_t* param_value_size_ret)
 {
     fprintf(stderr, "TODO: pancake_clGetPrograminfo\n");
-    exit(1);
+    fflush(stderr);
+    abort();
 }
 
 cl_int 
@@ -98,8 +100,7 @@ pancake_clGetProgramBuildInfo(pancake_cl_program program, cl_device_id device,
 pancake_cl_kernel 
 pancake_clCreateKernel(pancake_cl_program program, const char *kernel_name, cl_int *errcode_ret)
 {
-    pancake_cl_kernel kk = (pancake_cl_kernel) malloc(sizeof(pancake_cl_kernel_));
-    kk->refs   = 1;
+    pancake_cl_kernel kk = (pancake_cl_kernel) GC_malloc(sizeof(pancake_cl_kernel_));
     kk->kernel = clCreateKernel(program->program, kernel_name, errcode_ret);
     return kk;
 }
@@ -120,8 +121,7 @@ pancake_clCreateKernelsInProgram(pancake_cl_program program, cl_uint num_kernels
     int errcode = clCreateKernelsInProgram(program->program, num_kernels, ks, 0);
 
     for (cl_uint ii = 0; ii < num_kernels; ++ii) {
-        pancake_cl_kernel kk = (pancake_cl_kernel) malloc(sizeof(pancake_cl_kernel_));
-        kk->refs   = 1;
+        pancake_cl_kernel kk = (pancake_cl_kernel) GC_malloc(sizeof(pancake_cl_kernel_));
         kk->kernel = ks[ii];
         kernels[ii] = kk;
     }
@@ -132,26 +132,13 @@ pancake_clCreateKernelsInProgram(pancake_cl_program program, cl_uint num_kernels
 cl_int 
 pancake_clRetainKernel(pancake_cl_kernel kernel)
 {
-    kernel->refs += 1;
-    return CL_SUCCESS;
+    return clRetainKernel(kernel->kernel);
 }
 
 cl_int 
 pancake_clReleaseKernel(pancake_cl_kernel kernel)
 {
-    kernel->refs -= 1;
-
-    if (kernel->refs > 0)
-	return CL_SUCCESS;
-
-    if (kernel->refs == 0) {
-        int errcode = clReleaseKernel(kernel->kernel);
-        free(kernel);
-        return errcode;
-    }
-
-    fprintf(stderr, "pancake_clReleaseKernel: called when refs <= 0");
-    exit(1);
+    return clReleaseKernel(kernel->kernel);
 }
 
 cl_int 
