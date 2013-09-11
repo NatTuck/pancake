@@ -1,9 +1,11 @@
 BASE := $(shell readlink -f ../..)
 
+OPENCL ?= OpenCL
+
 CC      := gcc
 CFLAGS  := -g -std=gnu99 -Wall -I../../include
 LDFLAGS := -g -L$(BASE)/lib
-LDLIBS  := -lOpenCL -lpancake
+LDLIBS  := -l$(OPENCL) -lpancake
 
 BINF=mmul
 OBJS=$(shell ls *.c | perl -pe 's/\.c\b/.o/')
