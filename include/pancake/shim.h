@@ -20,25 +20,31 @@
  * - Kernels
  * - Buffers
  * 
+ * We can probably skip buffers if we're only specializing
+ * on scalar values.
  */
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
+#include "pancake/spec.h"
+
 /* pancake_cl_program - 
  * 
  * Proxy struct for cl_program
  *
- */ 
+ */
 
 typedef struct pancake_module pancake_module;
 
 typedef struct pancake_cl_program_ {
     cl_program program;
+    char* pancake_path;
     char* build_options;
     char* temp_dir;
     char* temp_source;
+    pancake_program_info* info;
 } pancake_cl_program_;
 
 typedef pancake_cl_program_* pancake_cl_program;
@@ -75,6 +81,11 @@ cl_int pancake_clGetProgramBuildInfo (pancake_cl_program program, cl_device_id d
 
 typedef struct pancake_cl_kernel_ {
     cl_kernel kernel;
+    char*   name;
+    size_t  num_args;
+    size_t* arg_size;
+    const void** arg_value;
+    pancake_kernel_info* info;
 } pancake_cl_kernel_;
 
 typedef pancake_cl_kernel_* pancake_cl_kernel;

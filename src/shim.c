@@ -13,12 +13,14 @@
 
 #define PANCAKE_INTERNAL
 #include <pancake/shim.h>
+#include <pancake/spec.h>
 
 pancake_cl_program 
 pancake_clCreateProgramWithSource(cl_context context, cl_uint count, 
     const char** strings, const size_t* lengths, cl_int* errcode_return)
 {
     cl_int err;
+    char*  cmd;
 
     pancake_cl_program program = (pancake_cl_program) GC_malloc(sizeof(pancake_cl_program_));
     program->build_options = 0;
@@ -29,7 +31,7 @@ pancake_clCreateProgramWithSource(cl_context context, cl_uint count,
     /* Write source to disk */
     program->temp_dir = ltempname("pancake");
 
-    char* cmd = lsprintf("mkdir -p %s", program->temp_dir);
+    cmd = lsprintf("mkdir -p %s", program->temp_dir);
     system(cmd);
 
     size_t source_size;
@@ -48,6 +50,8 @@ pancake_clCreateProgramWithSource(cl_context context, cl_uint count,
 
     program->temp_source = lsprintf("%s/program.cl", program->temp_dir);
     ldump(program->temp_source, src_text);
+
+    program->info = pancake_analyze_program(program->temp_source);
 
     return program;
 }
@@ -97,11 +101,69 @@ pancake_clGetProgramBuildInfo(pancake_cl_program program, cl_device_id device,
 				 param_value, param_value_size_ret);
 }
 
+static
+cl_uint
+kernel_get_num_args(cl_kernel kernel)
+{
+    cl_uint nargs;
+    cl_int  error;
+
+    error = clGetKernelInfo(kernel, CL_KERNEL_NUM_ARGS, sizeof(nargs), &nargs, 0);
+
+    if (error != CL_SUCCESS) {
+        fprintf(stderr, "clGetKernelInfo(NUM_ARGS) error %d\n", error);
+        fflush(stderr);
+        abort();
+    }
+
+    return nargs;
+}
+
+static
+char*
+kernel_get_name(cl_kernel kernel)
+{
+    size_t size;
+    cl_int error;
+
+    error = clGetKernelInfo(kernel, CL_KERNEL_FUNCTION_NAME, 0, 0, &size);
+    
+    if (error != CL_SUCCESS) {
+        fprintf(stderr, "clGetKernelInfo(NAME) (1) error %d\n", error);
+        fflush(stderr);
+        abort();
+    }
+
+    char* name = (char*) GC_malloc(size);
+
+    error = clGetKernelInfo(kernel, CL_KERNEL_FUNCTION_NAME, size, name, 0);
+    
+    if (error != CL_SUCCESS) {
+        fprintf(stderr, "clGetKernelInfo(NAME) (1) error %d\n", error);
+        fflush(stderr);
+        abort();
+    }
+
+    return name;
+}
+
+static
+void
+kernel_init(pancake_cl_program program, pancake_cl_kernel kk)
+{
+    kk->num_args  = kernel_get_num_args(kk->kernel);
+    kk->name      = kernel_get_name(kk->kernel);
+    kk->arg_size  = GC_malloc(kk->num_args * sizeof(size_t));
+    kk->arg_value = GC_malloc(kk->num_args * sizeof(void*));
+    kk->info      = pancake_get_kernel_info(program->info, kk->name);
+}
+
 pancake_cl_kernel 
 pancake_clCreateKernel(pancake_cl_program program, const char *kernel_name, cl_int *errcode_ret)
 {
     pancake_cl_kernel kk = (pancake_cl_kernel) GC_malloc(sizeof(pancake_cl_kernel_));
     kk->kernel = clCreateKernel(program->program, kernel_name, errcode_ret);
+    kernel_init(program, kk);
     return kk;
 }
 
@@ -123,6 +185,7 @@ pancake_clCreateKernelsInProgram(pancake_cl_program program, cl_uint num_kernels
     for (cl_uint ii = 0; ii < num_kernels; ++ii) {
         pancake_cl_kernel kk = (pancake_cl_kernel) GC_malloc(sizeof(pancake_cl_kernel_));
         kk->kernel = ks[ii];
+        kernel_init(program, kk);
         kernels[ii] = kk;
     }
 
@@ -142,11 +205,12 @@ pancake_clReleaseKernel(pancake_cl_kernel kernel)
 }
 
 cl_int 
-pancake_clSetKernelArg(pancake_cl_kernel kernel, cl_uint arg_index, 
+pancake_clSetKernelArg(pancake_cl_kernel kernel, cl_uint ii,
     size_t arg_size, const void *arg_value)
 {
-    printf("Set arg %d\n", arg_index);
-    return clSetKernelArg(kernel->kernel, arg_index, arg_size, arg_value);
+    kernel->arg_size[ii] = arg_size;
+    kernel->arg_value[ii] = arg_value;
+    return clSetKernelArg(kernel->kernel, ii, arg_size, arg_value);
 }
 
 cl_int 
@@ -155,6 +219,9 @@ pancake_clEnqueueNDRangeKernel (cl_command_queue command_queue, pancake_cl_kerne
     const size_t *local_work_size, cl_uint num_events_in_wait_list, 
     const cl_event *event_wait_list, cl_event *event)
 {
+     
+
+
     return clEnqueueNDRangeKernel(command_queue, kernel->kernel, work_dim, 
             global_work_offset, global_work_size, local_work_size, num_events_in_wait_list,
             event_wait_list, event);
