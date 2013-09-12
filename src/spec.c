@@ -95,6 +95,25 @@ pancake_get_kernel_info(pancake_program_info* prog_info, char* kernel_name)
     abort();
 }
 
+char* 
+pancake_kernel_spec_filename(pancake_kernel_info* kern_info)
+{
+    char* name = pancake_kernel_name(kern_info);
+    int nn = pancake_kernel_num_args(kern_info); 
+
+    char* argtext = lstrdup("");
+    for (int ii = 0; ii < nn; ++ii) {
+        if (pancake_kernel_arg_spec(kern_info, ii)) {
+            char* a_name  = pancake_kernel_arg_name(kern_info, ii);
+            char* a_value = pancake_kernel_arg_value(kern_info, ii);
+
+            argtext = lsprintf("%s-%s=%s", argtext, a_name, a_value);
+        }
+    }
+
+    return lsprintf("%s%s.cl", name, argtext);
+}
+
 char*
 pancake_kernel_name(pancake_kernel_info* kern_info)
 {
@@ -156,6 +175,34 @@ pancake_kernel_arg_spec(pancake_kernel_info* kern_info, int ii)
     return json_is_true(type);
 }
 
+char*
+pancake_kernel_arg_value(pancake_kernel_info* kern_info, int ii)
+{
+    json_t* info = kern_info->json;
+    assert(json_is_object(info));
+    json_t* args = json_object_get(info, "args");
+    assert(json_is_array(args));
+    json_t* arg  = json_array_get(args, ii);
+    assert(json_is_object(arg));
+    json_t* value = json_object_get(arg, "value");
+    if (json_is_string(value))
+        return lstrdup(json_string_value(value));
+    else
+        return lstrdup("");
+}
+
+void
+pancake_kernel_arg_set_value(pancake_kernel_info* kern_info, int ii, const char* vv)
+{
+    json_t* info = kern_info->json;
+    assert(json_is_object(info));
+    json_t* args = json_object_get(info, "args");
+    assert(json_is_array(args));
+    json_t* arg  = json_array_get(args, ii);
+    assert(json_is_object(arg));
+    json_object_set(arg, "value", json_string(vv));
+}
+
 void
 pancake_print_kernel_info(pancake_kernel_info* info)
 {
@@ -166,9 +213,16 @@ pancake_print_kernel_info(pancake_kernel_info* info)
     printf(" (%ld args):\n", nn);
     
     for (int ii = 0; ii < nn; ++ii) {
-        char* name = pancake_kernel_arg_name(info, ii);
-        char* type = pancake_kernel_arg_type(info, ii);
-        int   spec = pancake_kernel_arg_spec(info, ii);
-        printf("%s: %s (spec = %d)\n", name, type, spec); 
+        char* name  = pancake_kernel_arg_name(info, ii);
+        char* type  = pancake_kernel_arg_type(info, ii);
+        int   spec  = pancake_kernel_arg_spec(info, ii);
+        char* value = pancake_kernel_arg_value(info, ii);
+        printf("%s: %s (spec = %d, value = %s)\n", name, type, spec, value); 
     }
+}
+
+void 
+pancake_kernel_specialize(pancake_kernel_info* kern_info, const char* src, const char* dst)
+{
+    printf("Would specialize kernel from %s to %s\n", src, dst);
 }

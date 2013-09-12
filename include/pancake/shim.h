@@ -81,6 +81,7 @@ cl_int pancake_clGetProgramBuildInfo (pancake_cl_program program, cl_device_id d
 
 typedef struct pancake_cl_kernel_ {
     cl_kernel kernel;
+    pancake_cl_program program;
     char*   name;
     size_t  num_args;
     size_t* arg_size;

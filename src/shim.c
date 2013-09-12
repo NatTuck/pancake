@@ -151,6 +151,7 @@ static
 void
 kernel_init(pancake_cl_program program, pancake_cl_kernel kk)
 {
+    kk->program   = program;
     kk->num_args  = kernel_get_num_args(kk->kernel);
     kk->name      = kernel_get_name(kk->kernel);
     kk->arg_size  = GC_malloc(kk->num_args * sizeof(size_t));
@@ -210,6 +211,21 @@ pancake_clSetKernelArg(pancake_cl_kernel kernel, cl_uint ii,
 {
     kernel->arg_size[ii] = arg_size;
     kernel->arg_value[ii] = arg_value;
+
+    if (pancake_kernel_arg_spec(kernel->info, ii)) {
+        char* type = pancake_kernel_arg_type(kernel->info, ii);
+
+        if (streq(type, "long")) {
+            cl_long vv = *((long*) arg_value);
+            pancake_kernel_arg_set_value(kernel->info, ii, lsprintf("%ld", vv));
+        }
+        else {
+            fprintf(stderr, "Error: Can't handle spec arg of type '%s'.\n", type);
+            fflush(stderr);
+            abort();
+        }
+    }
+
     return clSetKernelArg(kernel->kernel, ii, arg_size, arg_value);
 }
 
@@ -219,8 +235,12 @@ pancake_clEnqueueNDRangeKernel (cl_command_queue command_queue, pancake_cl_kerne
     const size_t *local_work_size, cl_uint num_events_in_wait_list, 
     const cl_event *event_wait_list, cl_event *event)
 {
-     
+    pancake_print_kernel_info(kernel->info);
 
+    char* spec_filename = pancake_kernel_spec_filename(kernel->info);
+    char* spec_filepath = lsprintf("%s/%s", kernel->program->temp_dir, spec_filename);
+
+    pancake_kernel_specialize(kernel->info, kernel->program->temp_source, spec_filepath);
 
     return clEnqueueNDRangeKernel(command_queue, kernel->kernel, work_dim, 
             global_work_offset, global_work_size, local_work_size, num_events_in_wait_list,
