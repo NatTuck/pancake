@@ -15,6 +15,43 @@
 #include <pancake/shim.h>
 #include <pancake/spec.h>
 
+typedef struct temp_dir_node {
+    char* temp_dir;
+    struct temp_dir_node* next;
+} temp_dir_node;
+
+static temp_dir_node* pancake_temp_dirs = 0;
+
+static
+void
+add_temp_dir(char* dir)
+{
+    temp_dir_node* node = GC_malloc(sizeof(temp_dir_node));
+    node->temp_dir = lstrdup(dir);
+    node->next = pancake_temp_dirs;
+    pancake_temp_dirs = node;
+}
+
+static
+void
+cleanup_temp_dirs()
+{
+    while (pancake_temp_dirs != 0) {
+        temp_dir_node* node = pancake_temp_dirs;
+        char* dir  = node->temp_dir;
+        if (strncmp(dir, "/tmp", 4) == 0 &&
+            strstr(dir, "pancake") != 0) {
+            int rv = system(lsprintf("rm -rf %s", dir));
+            assert(WEXITSTATUS(rv) == 0);
+        }
+        else {
+            fprintf(stderr, "pancake cleanup: skipping bad dir: %s\n", dir);
+        }
+
+        pancake_temp_dirs = node->next;
+    }
+}
+
 pancake_cl_program 
 pancake_clCreateProgramWithSource(cl_context context, cl_uint count, 
     const char** strings, const size_t* lengths, cl_int* errcode_return)
@@ -30,9 +67,12 @@ pancake_clCreateProgramWithSource(cl_context context, cl_uint count,
 
     /* Write source to disk */
     program->temp_dir = ltempname("pancake");
+    add_temp_dir(program->temp_dir);
+    atexit(cleanup_temp_dirs);
 
     cmd = lsprintf("mkdir -p %s", program->temp_dir);
-    system(cmd);
+    int rv = system(cmd);
+    assert(WEXITSTATUS(rv) == 0);
 
     size_t source_size;
     err = clGetProgramInfo(program->program, CL_PROGRAM_SOURCE, 0, 0, &source_size);

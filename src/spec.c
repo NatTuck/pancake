@@ -1,6 +1,7 @@
 
 #include <stdlib.h>
 #include <assert.h>
+#include <unistd.h>
 #include <gc.h>
 
 #include <drip/lstring.h>
@@ -225,4 +226,16 @@ void
 pancake_kernel_specialize(pancake_kernel_info* kern_info, const char* src, const char* dst)
 {
     printf("Would specialize kernel from %s to %s\n", src, dst);
+    
+    char* json_tempname = ltempname("pancake-json");
+    
+    json_dump_file(kern_info->json, json_tempname, JSON_INDENT(2));
+
+    char* cmd = lsprintf("perl %s/scripts/spec_kernel.pl %s %s %s",
+            pancake_path(), json_tempname, src, dst);
+
+    int rv = system(cmd);
+    assert(WEXITSTATUS(rv) == 0);
+
+    unlink(json_tempname);
 }
