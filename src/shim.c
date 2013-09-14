@@ -61,6 +61,7 @@ pancake_clCreateProgramWithSource(cl_context context, cl_uint count,
 
     pancake_cl_program program = (pancake_cl_program) GC_malloc(sizeof(pancake_cl_program_));
     program->build_options = 0;
+    program->context = context;
 
     /* Need to create unspecialized program here */
     program->program = clCreateProgramWithSource(context, count, strings, lengths, errcode_return);
@@ -116,6 +117,8 @@ pancake_clBuildProgram(pancake_cl_program program, cl_uint num_devices,
 {
     /* Save some parameters */
     program->build_options = lstrdup(options);
+    program->num_devices   = num_devices;
+    program->device_list   = lmemcpy(device_list, num_devices * sizeof(cl_device_id*));
 
     /* Build generic version of program to catch errors and generate
      * expected program state. */
@@ -269,6 +272,52 @@ pancake_clSetKernelArg(pancake_cl_kernel kernel, cl_uint ii,
     return clSetKernelArg(kernel->kernel, ii, arg_size, arg_value);
 }
 
+static
+cl_kernel
+get_spec_kernel(pancake_cl_kernel gen_kern, const char* filename, const char* kern_name)
+{
+    cl_int errcode;
+    char* program_text  = lslurp(filename);
+    size_t program_size = strlen(program_text);
+
+    const char** sources = (const char **) &program_text;
+
+    cl_program program = clCreateProgramWithSource(gen_kern->program->context, 1, 
+            sources, &program_size, &errcode);
+    assert(errcode == CL_SUCCESS);
+
+    errcode = clBuildProgram(program, gen_kern->program->num_devices, 
+            gen_kern->program->device_list, gen_kern->program->build_options, 0, 0);
+
+    /* Print out errors on failure */
+    if (errcode == CL_BUILD_PROGRAM_FAILURE) {
+        size_t log_size;
+        char*  log_text;
+
+        errcode = clGetProgramBuildInfo(program, gen_kern->program->device_list[0], 
+                CL_PROGRAM_BUILD_LOG, 0, 0, &log_size);
+        assert(errcode == CL_SUCCESS);
+
+        log_text = (char*) alloca(log_size);
+
+        errcode = clGetProgramBuildInfo(program, gen_kern->program->device_list[0], 
+                CL_PROGRAM_BUILD_LOG, log_size, log_text, 0);
+        assert(errcode == CL_SUCCESS);
+
+        fprintf(stderr, "Build Errors\n%s\n", log_text);
+        fflush(stderr);
+        abort();
+    }
+    else {
+        assert(errcode == CL_SUCCESS);
+    }
+
+    cl_kernel kern = clCreateKernel(program, kern_name, &errcode);
+    assert(errcode == CL_SUCCESS);
+
+    return kern;
+}
+
 cl_int 
 pancake_clEnqueueNDRangeKernel (cl_command_queue command_queue, pancake_cl_kernel kernel,
     cl_uint work_dim, const size_t *global_work_offset, const size_t *global_work_size,
@@ -277,12 +326,26 @@ pancake_clEnqueueNDRangeKernel (cl_command_queue command_queue, pancake_cl_kerne
 {
     pancake_print_kernel_info(kernel->info);
 
-    char* spec_filename = pancake_kernel_spec_filename(kernel->info);
-    char* spec_filepath = lsprintf("%s/%s", kernel->program->temp_dir, spec_filename);
+    if (getenv("PANCAKE_SPEC")) {
+        char* spec_filename = pancake_kernel_spec_filename(kernel->info);
+        char* spec_filepath = lsprintf("%s/%s", kernel->program->temp_dir, spec_filename);
 
-    pancake_kernel_specialize(kernel->info, kernel->program->temp_source, spec_filepath);
+        pancake_kernel_specialize(kernel->info, kernel->program->temp_source, spec_filepath);
 
-    return clEnqueueNDRangeKernel(command_queue, kernel->kernel, work_dim, 
-            global_work_offset, global_work_size, local_work_size, num_events_in_wait_list,
-            event_wait_list, event);
+        cl_kernel spec_kern = get_spec_kernel(kernel, spec_filepath, kernel->name);
+
+        for (int ii = 0; ii < kernel->num_args; ++ii) {
+            int errcode = clSetKernelArg(spec_kern, ii, kernel->arg_size[ii], kernel->arg_value[ii]);
+            assert(errcode == CL_SUCCESS);
+        }
+
+        return clEnqueueNDRangeKernel(command_queue, spec_kern, work_dim, global_work_offset,
+                global_work_size, local_work_size, num_events_in_wait_list, event_wait_list,
+                event);
+    }
+    else {
+        return clEnqueueNDRangeKernel(command_queue, kernel->kernel, work_dim, 
+                global_work_offset, global_work_size, local_work_size, num_events_in_wait_list,
+                event_wait_list, event);
+    }
 }

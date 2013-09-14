@@ -40,6 +40,9 @@ typedef struct pancake_module pancake_module;
 
 typedef struct pancake_cl_program_ {
     cl_program program;
+    cl_context context;
+    cl_uint num_devices;
+    cl_device_id* device_list;
     char* pancake_path;
     char* build_options;
     char* temp_dir;
