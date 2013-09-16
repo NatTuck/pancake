@@ -225,8 +225,6 @@ pancake_print_kernel_info(pancake_kernel_info* info)
 void 
 pancake_kernel_specialize(pancake_kernel_info* kern_info, const char* src, const char* dst)
 {
-    printf("Would specialize kernel from %s to %s\n", src, dst);
-    
     char* json_tempname = ltempname("pancake-json");
     
     json_dump_file(kern_info->json, json_tempname, JSON_INDENT(2));

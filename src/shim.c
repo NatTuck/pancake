@@ -339,6 +339,8 @@ pancake_clEnqueueNDRangeKernel (cl_command_queue command_queue, pancake_cl_kerne
             assert(errcode == CL_SUCCESS);
         }
 
+        printf("Enqueueing specialized kernel.\n");
+
         return clEnqueueNDRangeKernel(command_queue, spec_kern, work_dim, global_work_offset,
                 global_work_size, local_work_size, num_events_in_wait_list, event_wait_list,
                 event);

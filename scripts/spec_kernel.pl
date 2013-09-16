@@ -27,11 +27,49 @@ sub read_kern {
     return $text;
 }
 
+sub extract_header {
+    my ($text) = @_;
+    
+    my $parens = 1;
+    my $ii = index($text, '(') + 1;
+    for (; $parens > 0; ++$ii) {
+        ++$parens if substr($text, $ii, 1) eq '(';
+        --$parens if substr($text, $ii, 1) eq ')';
+    }
+
+    return substr($text, 0, $ii);
+}
+
+sub unroll_pragmas {
+    my ($info, $text0) = @_;
+    my ($text1, @loops) = split(/\bfor\b/, $text0);
+
+    for my $loop (@loops) {
+        my $hdr    = extract_header($loop);
+        my $unroll = 1;
+
+        my (undef, $cond, undef) = split(';', $hdr);
+        for my $arg (@{$info->{args}}) {
+            next unless $arg->{spec};
+            my $name = $arg->{name};
+            if ($cond =~ /$name/) {
+                my $value = $arg->{value};
+                $unroll = 4 if ($value % 4 == 0);
+            }
+        }
+
+        $text1 .= "\n#pragma unroll $unroll\n";
+        $text1 .= "for $loop";
+    }
+
+
+    return $text1;
+}
+
+
 sub spec_kern {
     my ($info, $text) = @_;
    
-    say $text;
-
     # Find the function name.
     $text =~ /^\s*(.*?)\s*\(/s or die "bad kernel";
     my @ntoks  = split /\s+/, $1;
@@ -68,7 +106,7 @@ sub spec_kern {
     substr $text, index($text, '{') + 1, 0, "\n$spec_locals";
 
     # Insert unroll pragmas on appropriate for loops
-    # TODO: this
+    $text = unroll_pragmas($info, $text);
 
     return $text;
 }
@@ -81,7 +119,7 @@ while (<$src>) {
     if (/^\s*kernel/ or /^\s*__kernel/) {
         my $text = read_kern($src, $_);
         my $spec = spec_kern($info, $text);
-        #say "Spec text:\n$spec";
+        say "Spec text:\n$spec";
         $dst->print($spec);
     }
     else {
