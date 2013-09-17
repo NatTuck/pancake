@@ -9,7 +9,7 @@
 #include "pclu.h"
 #include "timer.h"
 
-#define SIZE   2048
+#define SIZE   4096
 #define SPIN   1
 #define DTYPE  float
 #define FORMAT "%.02f"

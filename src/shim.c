@@ -14,6 +14,7 @@
 #define PANCAKE_INTERNAL
 #include <pancake/shim.h>
 #include <pancake/spec.h>
+#include <pancake/timer.h>
 
 typedef struct temp_dir_node {
     char* temp_dir;
@@ -324,15 +325,25 @@ pancake_clEnqueueNDRangeKernel (cl_command_queue command_queue, pancake_cl_kerne
     const size_t *local_work_size, cl_uint num_events_in_wait_list, 
     const cl_event *event_wait_list, cl_event *event)
 {
+    int rv;
+
     pancake_print_kernel_info(kernel->info);
+
+    cake_timer tt;
 
     if (getenv("PANCAKE_SPEC")) {
         char* spec_filename = pancake_kernel_spec_filename(kernel->info);
         char* spec_filepath = lsprintf("%s/%s", kernel->program->temp_dir, spec_filename);
 
+        cake_timer_reset(&tt);
+
         pancake_kernel_specialize(kernel->info, kernel->program->temp_source, spec_filepath);
 
         cl_kernel spec_kern = get_spec_kernel(kernel, spec_filepath, kernel->name);
+
+        cake_timer_log(&tt, kernel->name, "opt");
+        
+        cake_timer_reset(&tt);
 
         for (int ii = 0; ii < kernel->num_args; ++ii) {
             int errcode = clSetKernelArg(spec_kern, ii, kernel->arg_size[ii], kernel->arg_value[ii]);
@@ -341,13 +352,31 @@ pancake_clEnqueueNDRangeKernel (cl_command_queue command_queue, pancake_cl_kerne
 
         printf("Enqueueing specialized kernel.\n");
 
-        return clEnqueueNDRangeKernel(command_queue, spec_kern, work_dim, global_work_offset,
+
+        rv = clEnqueueNDRangeKernel(command_queue, spec_kern, work_dim, global_work_offset,
                 global_work_size, local_work_size, num_events_in_wait_list, event_wait_list,
                 event);
+
+        clFinish(command_queue);
+        
+        cake_timer_log(&tt, kernel->name, "run");
     }
     else {
-        return clEnqueueNDRangeKernel(command_queue, kernel->kernel, work_dim, 
+        
+        cake_timer_reset(&tt);
+
+        cake_timer_log(&tt, kernel->name, "opt");
+        
+        cake_timer_reset(&tt);
+
+        rv = clEnqueueNDRangeKernel(command_queue, kernel->kernel, work_dim, 
                 global_work_offset, global_work_size, local_work_size, num_events_in_wait_list,
                 event_wait_list, event);
+
+        clFinish(command_queue);
+        
+        cake_timer_log(&tt, kernel->name, "run");
     }
+
+    return rv;
 }
