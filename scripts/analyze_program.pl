@@ -28,9 +28,10 @@ sub parse_decl {
     my ($text) = @_;
     my $decl = {};
 
-    $text =~ s/^void\s*//;
+    $text =~ s/^\s*void\s*//;
 
-    $text =~ /^(\w+)\((.*?)\)/;
+    $text =~ /^(\w+)\s*\((.*?)\)/ or do die "Not a decl\n$text";
+
     my $name = $1;
     my @args = split /\s*,\s*/, $2;
 
@@ -50,6 +51,10 @@ sub parse_decl {
         $arg =~ /^(.*?)\s*(\w+)$/;
         my ($a_type, $a_name) = ($1, $2);
         my $a_spec = defined $spec->{$a_name} ? \1 : \0;
+
+        # Constness doesn't matter for arg types.
+        $a_type =~ s/\s*const\s*//g;
+
         push @{$decl->{args}}, { 
             name => $a_name, 
             type => $a_type,

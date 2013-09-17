@@ -15,6 +15,7 @@
 #include <pancake/shim.h>
 #include <pancake/spec.h>
 #include <pancake/timer.h>
+#include <pancake/cache.h>
 
 typedef struct temp_dir_node {
     char* temp_dir;
@@ -117,9 +118,13 @@ pancake_clBuildProgram(pancake_cl_program program, cl_uint num_devices,
     void *user_data)
 {
     /* Save some parameters */
-    program->build_options = lstrdup(options);
+    program->build_options = lstrdup(options ? options : "");
     program->num_devices   = num_devices;
-    program->device_list   = lmemcpy(device_list, num_devices * sizeof(cl_device_id*));
+
+    if (num_devices > 0)
+        program->device_list = lmemcpy(device_list, num_devices * sizeof(cl_device_id*));
+    else
+        program->device_list = 0;
 
     /* Build generic version of program to catch errors and generate
      * expected program state. */
@@ -263,6 +268,10 @@ pancake_clSetKernelArg(pancake_cl_kernel kernel, cl_uint ii,
             cl_long vv = *((long*) arg_value);
             pancake_kernel_arg_set_value(kernel->info, ii, lsprintf("%ld", vv));
         }
+        else if (streq(type, "int")) {
+            cl_int vv = *((int*) arg_value);
+            pancake_kernel_arg_set_value(kernel->info, ii, lsprintf("%d", vv));
+        }
         else {
             fprintf(stderr, "Error: Can't handle spec arg of type '%s'.\n", type);
             fflush(stderr);
@@ -291,7 +300,13 @@ get_spec_kernel(pancake_cl_kernel gen_kern, const char* filename, const char* ke
             gen_kern->program->device_list, gen_kern->program->build_options, 0, 0);
 
     /* Print out errors on failure */
-    if (errcode == CL_BUILD_PROGRAM_FAILURE) {
+    if (errcode != CL_SUCCESS) {
+        fprintf(stderr, "Got error in clBuildProgram for spec kernel '%s'.\n", kern_name);
+        if (errcode == CL_BUILD_PROGRAM_FAILURE)
+            fprintf(stderr, "Error was CL_BUILD_PROGRAM_FAILURE\n");
+        else 
+            fprintf(stderr, "Error was %d\n", errcode);
+
         size_t log_size;
         char*  log_text;
 
@@ -309,9 +324,6 @@ get_spec_kernel(pancake_cl_kernel gen_kern, const char* filename, const char* ke
         fflush(stderr);
         abort();
     }
-    else {
-        assert(errcode == CL_SUCCESS);
-    }
 
     cl_kernel kern = clCreateKernel(program, kern_name, &errcode);
     assert(errcode == CL_SUCCESS);
@@ -325,9 +337,11 @@ pancake_clEnqueueNDRangeKernel (cl_command_queue command_queue, pancake_cl_kerne
     const size_t *local_work_size, cl_uint num_events_in_wait_list, 
     const cl_event *event_wait_list, cl_event *event)
 {
+    static pancake_kernel_cache* cache = 0;
+
     int rv;
 
-    pancake_print_kernel_info(kernel->info);
+    //pancake_print_kernel_info(kernel->info);
 
     cake_timer tt;
 
@@ -337,9 +351,13 @@ pancake_clEnqueueNDRangeKernel (cl_command_queue command_queue, pancake_cl_kerne
 
         cake_timer_reset(&tt);
 
-        pancake_kernel_specialize(kernel->info, kernel->program->temp_source, spec_filepath);
+        cl_kernel spec_kern = pancake_cache_get(cache, spec_filepath);
 
-        cl_kernel spec_kern = get_spec_kernel(kernel, spec_filepath, kernel->name);
+        if (spec_kern == 0) {
+            pancake_kernel_specialize(kernel->info, kernel->program->temp_source, spec_filepath);
+            spec_kern = get_spec_kernel(kernel, spec_filepath, kernel->name);
+            cache = pancake_cache_add(cache, spec_filepath, spec_kern);
+        }
 
         cake_timer_log(&tt, kernel->name, "opt");
         
@@ -349,9 +367,6 @@ pancake_clEnqueueNDRangeKernel (cl_command_queue command_queue, pancake_cl_kerne
             int errcode = clSetKernelArg(spec_kern, ii, kernel->arg_size[ii], kernel->arg_value[ii]);
             assert(errcode == CL_SUCCESS);
         }
-
-        printf("Enqueueing specialized kernel.\n");
-
 
         rv = clEnqueueNDRangeKernel(command_queue, spec_kern, work_dim, global_work_offset,
                 global_work_size, local_work_size, num_events_in_wait_list, event_wait_list,

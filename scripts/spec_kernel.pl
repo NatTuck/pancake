@@ -54,7 +54,8 @@ sub unroll_pragmas {
             my $name = $arg->{name};
             if ($cond =~ /$name/) {
                 my $value = $arg->{value};
-                $unroll = 4 if ($value % 4 == 0);
+                $unroll = 4  if ($value % 4 == 0);
+                $unroll = "" if ($value < 32);
             }
         }
 
@@ -107,6 +108,8 @@ sub spec_kern {
 
     # Insert unroll pragmas on appropriate for loops
     $text = unroll_pragmas($info, $text);
+        
+    say "Spec text:\n$text";
 
     return $text;
 }
@@ -119,7 +122,6 @@ while (<$src>) {
     if (/^\s*kernel/ or /^\s*__kernel/) {
         my $text = read_kern($src, $_);
         my $spec = spec_kern($info, $text);
-        say "Spec text:\n$spec";
         $dst->print($spec);
     }
     else {

@@ -2,7 +2,7 @@ BASE := $(shell readlink -f .)
 
 CC      := gcc
 CFLAGS  := -g -fPIC -std=gnu99 -Wall -Werror -I/usr/local/include -I$(BASE)/include
-LDFLAGS := -g -fPIC -shared -L/usr/local/lib
+LDFLAGS := -g -fPIC -shared -L/usr/lib -L/usr/local/lib
 LDLIBS  := -ldrip -lOpenCL -lgc -ljansson
 
 HDRS := $(wildcard include/pancake/*.h)
