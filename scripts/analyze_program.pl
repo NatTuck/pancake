@@ -48,7 +48,7 @@ sub parse_decl {
     $decl->{args} = [];
 
     for my $arg (@args) {
-        $arg =~ /^(.*?)\s*(\w+)$/;
+        $arg =~ /^(.*?)\s*(\w+)\s*$/ or die "Couldn't match arg: $arg";
         my ($a_type, $a_name) = ($1, $2);
         my $a_spec = defined $spec->{$a_name} ? \1 : \0;
 

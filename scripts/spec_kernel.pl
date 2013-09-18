@@ -89,6 +89,7 @@ sub spec_kern {
     for (my $ii = 0; $ii < $nargs; ++$ii) {
         my $a_info = $info->{args}[$ii];
         if ($a_info->{spec}) {
+            $args[$ii] =~ s/\s*$//s;
             $args[$ii] .= "___";
         }
     }

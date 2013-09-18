@@ -272,6 +272,10 @@ pancake_clSetKernelArg(pancake_cl_kernel kernel, cl_uint ii,
             cl_int vv = *((int*) arg_value);
             pancake_kernel_arg_set_value(kernel->info, ii, lsprintf("%d", vv));
         }
+        else if (streq(type, "float")) {
+            float vv = *((float*) arg_value);
+            pancake_kernel_arg_set_value(kernel->info, ii, lsprintf("%f", vv));
+        }
         else {
             fprintf(stderr, "Error: Can't handle spec arg of type '%s'.\n", type);
             fflush(stderr);
@@ -394,4 +398,13 @@ pancake_clEnqueueNDRangeKernel (cl_command_queue command_queue, pancake_cl_kerne
     }
 
     return rv;
+}
+
+cl_int
+pancake_clGetKernelWorkGroupInfo(pancake_cl_kernel kernel, cl_device_id device,
+ 	cl_kernel_work_group_info param_name, size_t param_value_size, void *param_value,
+ 	size_t *param_value_size_ret)
+{
+    return clGetKernelWorkGroupInfo(kernel->kernel, device, param_name, param_value_size,
+            param_value, param_value_size_ret);
 }
