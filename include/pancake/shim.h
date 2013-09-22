@@ -109,7 +109,8 @@ cl_int pancake_clEnqueueNDRangeKernel (cl_command_queue command_queue, pancake_c
 cl_int pancake_clGetKernelWorkGroupInfo (pancake_cl_kernel kernel, cl_device_id device,
  	cl_kernel_work_group_info param_name, size_t param_value_size, void *param_value,
  	size_t *param_value_size_ret);
-
+cl_int pancake_clEnqueueTask (cl_command_queue command_queue, pancake_cl_kernel kernel,
+    cl_uint num_events_in_wait_list, const cl_event *event_wait_list, cl_event *event);
 
 #ifndef PANCAKE_INTERNAL
 #define cl_kernel pancake_cl_kernel
@@ -120,6 +121,7 @@ cl_int pancake_clGetKernelWorkGroupInfo (pancake_cl_kernel kernel, cl_device_id 
 #define clSetKernelArg(a,b,c,d) pancake_clSetKernelArg((a),(b),(c),(d))
 #define clEnqueueNDRangeKernel(a,b,c,d,e,f,g,h,i) pancake_clEnqueueNDRangeKernel( \
 	(a),(b),(c),(d),(e),(f),(g),(h),(i))
+#define clEnqueueTask(a, b, c, d, e) pancake_clEnqueueTask((a),(b),(c),(d),(e))
 #endif
 
 

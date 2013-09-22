@@ -33,6 +33,7 @@ sub extract_header {
     my $parens = 1;
     my $ii = index($text, '(') + 1;
     for (; $parens > 0; ++$ii) {
+        die "can't extract header:\n $text\n" if ($ii + 1 > length($text));
         ++$parens if substr($text, $ii, 1) eq '(';
         --$parens if substr($text, $ii, 1) eq ')';
     }
@@ -46,7 +47,7 @@ sub unroll_pragmas {
 
     for my $loop (@loops) {
         my $hdr    = extract_header($loop);
-        my $unroll = 1;
+        my $unroll = "";
 
         my (undef, $cond, undef) = split(';', $hdr);
         for my $arg (@{$info->{args}}) {
@@ -54,7 +55,7 @@ sub unroll_pragmas {
             my $name = $arg->{name};
             if ($cond =~ /$name/) {
                 my $value = $arg->{value};
-                $unroll = 4  if ($value % 4 == 0);
+                $unroll = ""  if ($value % 4 == 0);
                 $unroll = "" if ($value < 32);
             }
         }
@@ -79,36 +80,44 @@ sub spec_kern {
     # Make sure it matches the spec info.
     return $text unless $info->{name} eq $k_name;
 
-    # Rename the specialized arguments.
-    $text =~ /^(([^\(]*?)$k_name\s*\((.*?)\))/s;
-    my $full_head = $1;
-    my $head_dcls = $2;
-    my @args = split /\s*,\s*/, $3;
-
-    my $nargs = scalar @args;
-    for (my $ii = 0; $ii < $nargs; ++$ii) {
-        my $a_info = $info->{args}[$ii];
-        if ($a_info->{spec}) {
-            $args[$ii] =~ s/\s*$//s;
-            $args[$ii] .= "___";
+    unless (defined $ENV{PANCAKE_NOSPEC}) {
+        # Rename the specialized arguments.
+        $text =~ /^(([^\(]*?)$k_name\s*\((.*?)\))/s;
+        my $full_head = $1;
+        my $head_dcls = $2;
+        my @args = split /\s*,\s*/, $3;
+        
+        my $nargs = scalar @args;
+        for (my $ii = 0; $ii < $nargs; ++$ii) {
+            my $a_info = $info->{args}[$ii];
+            if ($a_info->{spec}) {
+                $args[$ii] =~ s/\s*$//s;
+                $args[$ii] .= "___";
+            }
         }
+
+        my $spec_head = "$head_dcls $k_name(" . join(', ', @args) . ")";
+        substr $text, 0, length($full_head), $spec_head;
+
+        # Insert specialized values as locals.
+        my $spec_locals = "";
+        for my $ai (@{$info->{args}}) {
+            if ($ai->{spec}) {
+                $spec_locals .= sprintf("    const %s %s = %s;\n",
+                    $ai->{type}, $ai->{name}, $ai->{value});
+            }
+        }
+        substr $text, index($text, '{') + 1, 0, "\n$spec_locals";
     }
 
-    my $spec_head = "$head_dcls $k_name(" . join(', ', @args) . ")";
-    substr $text, 0, length($full_head), $spec_head;
+    # Neuter comments
+    $text =~ s/\/\/.*?\n//sg;
+    $text =~ s/\/\*.*?\*\///sg;
 
-    # Insert specialized values as locals.
-    my $spec_locals = "";
-    for my $ai (@{$info->{args}}) {
-        if ($ai->{spec}) {
-            $spec_locals .= sprintf("    const %s %s = %s;\n",
-                $ai->{type}, $ai->{name}, $ai->{value});
-        }
+    if (defined $ENV{PANCAKE_UNROLL}) {
+        # Insert unroll pragmas on appropriate for loops
+        $text = unroll_pragmas($info, $text);
     }
-    substr $text, index($text, '{') + 1, 0, "\n$spec_locals";
-
-    # Insert unroll pragmas on appropriate for loops
-    $text = unroll_pragmas($info, $text);
         
     say "Spec text:\n$text";
 

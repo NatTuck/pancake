@@ -28,6 +28,7 @@ sub parse_decl {
     my ($text) = @_;
     my $decl = {};
 
+    $text =~ s/__attribute__.*?void\s*//;
     $text =~ s/^\s*void\s*//;
 
     $text =~ /^(\w+)\s*\((.*?)\)/ or do die "Not a decl\n$text";

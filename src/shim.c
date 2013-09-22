@@ -408,3 +408,12 @@ pancake_clGetKernelWorkGroupInfo(pancake_cl_kernel kernel, cl_device_id device,
     return clGetKernelWorkGroupInfo(kernel->kernel, device, param_name, param_value_size,
             param_value, param_value_size_ret);
 }
+
+cl_int 
+pancake_clEnqueueTask(cl_command_queue command_queue, pancake_cl_kernel kernel, 
+    cl_uint num_events_in_wait_list, const cl_event *event_wait_list, cl_event *event)
+{
+    size_t size[] = {1, 0, 0};
+    return pancake_clEnqueueNDRangeKernel(command_queue, kernel, 1, 0, size, size,
+            num_events_in_wait_list, event_wait_list, event);
+}

@@ -40,6 +40,15 @@ pancake_path()
     return lstrdup(path);
 }
 
+static
+void
+json_dump(json_t* json)
+{
+    char* text = json_dumps(json, JSON_INDENT(2));
+    printf("json dump =\n%s\n", text);
+    free(text);
+}
+
 pancake_program_info*
 pancake_analyze_program(const char* filename)
 {
@@ -90,6 +99,8 @@ pancake_get_kernel_info(pancake_program_info* prog_info, char* kernel_name)
             return info;
         }
     }
+
+    json_dump(info);
 
     fprintf(stderr, "No such kernel: %s\n", kernel_name);
     fflush(stderr);
