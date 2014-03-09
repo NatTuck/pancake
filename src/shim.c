@@ -63,7 +63,7 @@ pancake_status()
         status = lstrcat(status, "enabled ");
     }
     else {
-        status = lstrcat(status, "disabled ");
+        return lstrdup("disabled");
     }
 
     if (getenv("PANCAKE_NOSPEC")) {
@@ -80,8 +80,9 @@ pancake_status()
         status = lstrcat(status, "no-unroll");
     }
 
-    return lsprintf("pancake: %s\n", status);
+    return status;
 }
+
 pancake_cl_program 
 pancake_clCreateProgramWithSource(cl_context context, cl_uint count, 
     const char** strings, const size_t* lengths, cl_int* errcode_return)
@@ -124,6 +125,39 @@ pancake_clCreateProgramWithSource(cl_context context, cl_uint count,
 
     program->info = pancake_analyze_program(program->temp_source);
 
+    if (getenv("PANCAKE_STATUS")) {
+        cl_uint ndv;
+        clGetContextInfo(context, CL_CONTEXT_NUM_DEVICES, sizeof(ndv), &ndv, 0);
+
+        if (ndv == 0) {
+            fprintf(stderr, "WTF?!?!\n");
+            fflush(stderr);
+            abort();
+        }
+
+        cl_uint  dvs_size = sizeof(cl_device_id) * ndv;
+        cl_device_id* dvs = alloca(dvs_size);
+        clGetContextInfo(context, CL_CONTEXT_DEVICES, dvs_size, dvs, 0);
+
+        FILE* ff = fopen(getenv("PANCAKE_STATUS"), "w");
+        if (ff == 0) {
+            perror("gargh!");
+            fflush(stderr);
+            abort();
+        }
+
+        fprintf(ff, "pancake: %s\n", pancake_status());
+
+        char* dname = alloca(512);
+
+        for(int ii = 0; ii < ndv; ++ii) {
+            clGetDeviceInfo(dvs[ii], CL_DEVICE_NAME, 512, (void*)dname, 0);
+            fprintf(ff, "device: %s\n", dname);
+        }
+
+        fclose(ff);
+    }
+
     return program;
 }
 
@@ -149,29 +183,11 @@ pancake_clBuildProgram(pancake_cl_program program, cl_uint num_devices,
     program->build_options = lstrdup(options ? options : "");
     program->num_devices   = num_devices;
 
-    if (num_devices > 0)
+    if (num_devices > 0) {
         program->device_list = lmemcpy(device_list, num_devices * sizeof(cl_device_id*));
-    else
+    }
+    else {
         program->device_list = 0;
-
-    if (getenv("PANCAKE_STATUS")) {
-        FILE* ff = fopen(getenv("PANCAKE_STATUS"), "w");
-        if (ff == 0) {
-            perror("gargh!");
-            fflush(stderr);
-            abort();
-        }
-
-        fprintf(ff, "%s", pancake_status());
-
-        char* dname = alloca(512);
-
-        for(int ii = 0; ii < num_devices; ++ii) {
-            clGetDeviceInfo(device_list[ii], CL_DEVICE_NAME, 512, (void*)dname, 0);
-            fprintf(ff, "device: %s\n", dname);
-        }
-
-        fclose(ff);
     }
 
     /* Build generic version of program to catch errors and generate
@@ -184,9 +200,8 @@ cl_int
 pancake_clGetProgramInfo(pancake_cl_program program, cl_program_info param_name,
     size_t param_value_size, void* param_value, size_t* param_value_size_ret)
 {
-    fprintf(stderr, "TODO: pancake_clGetPrograminfo\n");
-    fflush(stderr);
-    abort();
+    return clGetProgramInfo(program->program, param_name, param_value_size, 
+            param_value, param_value_size_ret);
 }
 
 cl_int 
