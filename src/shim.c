@@ -54,6 +54,34 @@ cleanup_temp_dirs()
     }
 }
 
+char*
+pancake_status()
+{
+    char *status = lstrdup("");
+
+    if (getenv("PANCAKE_SPEC")) {
+        status = lstrcat(status, "enabled ");
+    }
+    else {
+        status = lstrcat(status, "disabled ");
+    }
+
+    if (getenv("PANCAKE_NOSPEC")) {
+        status = lstrcat(status, "no-spec ");
+    }
+    else {
+        status = lstrcat(status, "spec ");
+    }
+
+    if (getenv("PANCAKE_UNROLL")) {
+        status = lstrcat(status, "unroll");
+    }
+    else {
+        status = lstrcat(status, "no-unroll");
+    }
+
+    return lsprintf("pancake: %s\n", status);
+}
 pancake_cl_program 
 pancake_clCreateProgramWithSource(cl_context context, cl_uint count, 
     const char** strings, const size_t* lengths, cl_int* errcode_return)
@@ -125,6 +153,26 @@ pancake_clBuildProgram(pancake_cl_program program, cl_uint num_devices,
         program->device_list = lmemcpy(device_list, num_devices * sizeof(cl_device_id*));
     else
         program->device_list = 0;
+
+    if (getenv("PANCAKE_STATUS")) {
+        FILE* ff = fopen(getenv("PANCAKE_STATUS"), "w");
+        if (ff == 0) {
+            perror("gargh!");
+            fflush(stderr);
+            abort();
+        }
+
+        fprintf(ff, "%s", pancake_status());
+
+        char* dname = alloca(512);
+
+        for(int ii = 0; ii < num_devices; ++ii) {
+            clGetDeviceInfo(device_list[ii], CL_DEVICE_NAME, 512, (void*)dname, 0);
+            fprintf(ff, "device: %s\n", dname);
+        }
+
+        fclose(ff);
+    }
 
     /* Build generic version of program to catch errors and generate
      * expected program state. */
@@ -417,3 +465,5 @@ pancake_clEnqueueTask(cl_command_queue command_queue, pancake_cl_kernel kernel,
     return pancake_clEnqueueNDRangeKernel(command_queue, kernel, 1, 0, size, size,
             num_events_in_wait_list, event_wait_list, event);
 }
+
+

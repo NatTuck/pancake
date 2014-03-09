@@ -124,6 +124,7 @@ cl_int pancake_clEnqueueTask (cl_command_queue command_queue, pancake_cl_kernel 
 #define clEnqueueTask(a, b, c, d, e) pancake_clEnqueueTask((a),(b),(c),(d),(e))
 #endif
 
+char* pancake_status();
 
 #ifdef __cplusplus
 } // extern "C"
