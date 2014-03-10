@@ -335,6 +335,10 @@ pancake_clSetKernelArg(pancake_cl_kernel kernel, cl_uint ii,
             cl_int vv = *((int*) arg_value);
             pancake_kernel_arg_set_value(kernel->info, ii, lsprintf("%d", vv));
         }
+        else if (streq(type, "unsigned int") || streq(type, "uint")) {
+            cl_uint vv = *((unsigned int*) arg_value);
+            pancake_kernel_arg_set_value(kernel->info, ii, lsprintf("%d", vv));
+        }
         else if (streq(type, "float")) {
             float vv = *((float*) arg_value);
             pancake_kernel_arg_set_value(kernel->info, ii, lsprintf("%f", vv));
@@ -480,5 +484,4 @@ pancake_clEnqueueTask(cl_command_queue command_queue, pancake_cl_kernel kernel,
     return pancake_clEnqueueNDRangeKernel(command_queue, kernel, 1, 0, size, size,
             num_events_in_wait_list, event_wait_list, event);
 }
-
 
